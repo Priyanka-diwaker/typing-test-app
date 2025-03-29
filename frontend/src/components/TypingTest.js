@@ -203,6 +203,7 @@
 // };
 
 // export default TypingTest; 
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 //import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -214,7 +215,7 @@ const TypingTest = () => {
   const { user } = useAuth();
   //const navigate = useNavigate();
   const textAreaRef = useRef(null);
-  
+
   const [text, setText] = useState('');
   const [userInput, setUserInput] = useState('');
   const [timeLeft, setTimeLeft] = useState(30);
@@ -235,36 +236,24 @@ const TypingTest = () => {
     setText(sampleText);
   }, []);
 
-  const endTest = useCallback(() => {
-    setIsActive(false);
-    calculateStats();
-    setShowResults(true);
-    if (user) {
-      saveSession();
-    }
-  }, [calculateStats, saveSession, user]); // Dependencies for useCallback
+  // Use useCallback for functions used in useEffect dependencies
 
-  useEffect(() => {
-    let interval = null;
-    if (isActive && timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft(time => time - 1);
-      }, 1000);
-    } else if (timeLeft === 0) {
-      endTest();
-    }
-    return () => clearInterval(interval);
-  }, [isActive, timeLeft, endTest]);
+    // Psychological insight calculations
+    const calculateImpulsivity = useCallback(() => {
+        return Math.min(100, (stats.totalErrors / stats.wpm) * 50);
+    }, [stats.totalErrors, stats.wpm]);
 
-  const startTest = () => {
-    setIsActive(true);
-    setTimeLeft(30);
-    setUserInput('');
-    setShowResults(false);
-    textAreaRef.current?.focus();
-  };
+    const calculateCognitiveLoad = useCallback(() => {
+        return Math.min(100, (stats.errorWords.length / stats.wpm) * 30);
+    }, [stats.errorWords.length, stats.wpm]);
 
+    const calculateResilience = useCallback(() => {
+        return Math.max(0, 100 - (stats.totalErrors * 10));
+    }, [stats.totalErrors]);
 
+    const calculateAnxietyLevel = useCallback(() => {
+        return Math.min(100, (stats.totalErrors / timeLeft) * 20);
+    }, [stats.totalErrors, timeLeft]);
 
   const calculateStats = useCallback(() => {
     const words = text.split(' ');
@@ -286,7 +275,7 @@ const TypingTest = () => {
       errorWords: errors,
       typingDurations: [] // This would be populated with actual timing data
     });
-  }, [text, timeLeft, userInput]);
+  }, [text, userInput, timeLeft]);
 
   const saveSession = useCallback(async () => {
     try {
@@ -311,7 +300,7 @@ const TypingTest = () => {
         `${API_URL}/api/sessions`,
         sessionData,
         {
-          headers: { 
+          headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
@@ -322,24 +311,39 @@ const TypingTest = () => {
       console.error('Error saving session:', error.response?.data || error.message);
       // You might want to show an error message to the user here
     }
-  }, [stats, calculateAnxietyLevel, calculateCognitiveLoad, calculateImpulsivity, calculateResilience]);
+  }, [stats, calculateImpulsivity, calculateCognitiveLoad, calculateResilience, calculateAnxietyLevel]);
 
-  // Psychological insight calculations
-    const calculateImpulsivity = useCallback(() => {
-        return Math.min(100, (stats.totalErrors / stats.wpm) * 50);
-    }, [stats.totalErrors, stats.wpm]);
 
-    const calculateCognitiveLoad = useCallback(() => {
-        return Math.min(100, (stats.errorWords.length / stats.wpm) * 30);
-    }, [stats.errorWords.length, stats.wpm]);
+  const endTest = useCallback(() => {
+    setIsActive(false);
+    calculateStats();
+    setShowResults(true);
+    if (user) {
+      saveSession();
+    }
+  }, [calculateStats, saveSession, user]); // Add calculateStats and saveSession as dependencies
 
-    const calculateResilience = useCallback(() => {
-        return Math.max(0, 100 - (stats.totalErrors * 10));
-    }, [stats.totalErrors]);
+  useEffect(() => {
+    let interval = null;
+    if (isActive && timeLeft > 0) {
+      interval = setInterval(() => {
+        setTimeLeft(time => time - 1);
+      }, 1000);
+    } else if (timeLeft === 0) {
+      endTest();
+    }
+    return () => clearInterval(interval);
+  }, [isActive, timeLeft, endTest]); // Add endTest to the dependency array
 
-    const calculateAnxietyLevel = useCallback(() => {
-        return Math.min(100, (stats.totalErrors / timeLeft) * 20);
-    }, [stats.totalErrors, timeLeft]);
+  const startTest = () => {
+    setIsActive(true);
+    setTimeLeft(30);
+    setUserInput('');
+    setShowResults(false);
+    textAreaRef.current?.focus();
+  };
+
+
 
   return (
     <div className="max-w-4xl mx-auto">
